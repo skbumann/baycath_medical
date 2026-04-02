@@ -6,9 +6,9 @@ from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 
 # Page Config
-st.set_page_config(page_title="Michael's Catheter Calculator", layout="wide")
+st.set_page_config(page_title="Engineering Workbench", layout="wide")
 
-st.title("🚀 ML & NLP Engineering Portfolio Sandbox")
+st.title("Michael's Catheter Calculator")
 st.markdown("---")
 
 # Sidebar Navigation
