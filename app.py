@@ -2,68 +2,88 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
-from sklearn.linear_model import LinearRegression
-import matplotlib.pyplot as plt
 
 # Page Config
 st.set_page_config(page_title="Engineering Workbench", layout="wide")
 
-st.title("Michael's Catheter Calculator")
-st.markdown("---")
+st.title("BayCath Medical Catheter Calculator")
+#st.markdown("---")
 
-# Sidebar Navigation
-#page = st.sidebar.radio("Select a Module", ["Linear Regression (Math)", "NLP & Regex Tool"])
+st.image("model_cath_annot.jpg", caption="This is a model catheter")
 
-# --- MODULE 1: LINEAR REGRESSION ---
-#if page == "Linear Regression (Math)":
-st.header("📉 Linear Regression & Noise Simulator")
-st.write("Demonstrating Ordinary Least Squares (OLS) and weight estimation.")
+
+import streamlit as st
+
+st.header("Header")
+st.write("Calculates required dimensions for your design")
 
 # User Inputs
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 with col1:
-	n_points = st.slider("Number of Data Points", 10, 500, 100)
-	noise = st.slider("Noise Level", 0.0, 50.0, 10.0)
+    with st.container(border=True):
+        st.write("Inner Diameter (ID):")
+        id_val = st.number_input("Enter value", min_value=0.0, key="id_val")
+        id_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="id_unit")
 with col2:
-	true_slope = st.number_input("True Slope", value=2.5)
-	true_intercept = st.number_input("True Intercept", value=10.0)
+    with st.container(border=True):
+        st.write("Outer Diameter (OD):")
+        od_val = st.number_input("Enter value", min_value=0.0, key="od_val")
+        od_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="od_unit")
+with col3:
+    with st.container(border=True):
+        st.write("Overall Length (OAL):")
+        oal_val = st.number_input("Enter value", min_value=0.0, key="oal_val")
+        oal_unit = st.radio("Select units:", ["centimeters (cm)", "inches (in)"], horizontal=True, key="oal_unit")
 
-# Generate Data
-X = np.linspace(0, 100, n_points).reshape(-1, 1)
-y = true_slope * X + true_intercept + np.random.normal(0, noise, (n_points, 1))
+st.subheader("Braid Wire")
+col1, col2, col3 = st.columns(3)
+with col1:
+	with st.container(border=True):
+		braid_wire = st.radio("Select option:", ["N/A", "Flat wire", "Round wire"], horizontal=True, key="braid_type")
 
-# Fit Model
-model = LinearRegression()
-model.fit(X, y)
-y_pred = model.predict(X)
+st.subheader("Coil Wire")
+col1, col2, col3 = st.columns(3)
+with col1:
+	with st.container(border=True):
+		coil_wire = st.radio("Select option:", ["N/A", "Coil under braid", "Flat wire", "Round wire"], horizontal=True, key="coil_type")
 
-# Plotting
-fig, ax = plt.subplots()
-ax.scatter(X, y, alpha=0.5, label="Data")
-ax.plot(X, y_pred, color='red', label=f"OLS Fit (m={model.coef_[0][0]:.2f})")
-ax.legend()
-st.pyplot(fig)
+# Calculations
+# Wall thickness: inches as default
+od_in = od_val if od_unit=="inches (in)" else od_val * 0.3937007 # convert to in if in cm
+id_in = id_val if id_unit=="inches (in)" else id_val * 0.3937007 # convert to in if in cm
+if od_in < id_in:
+	raise ValueError("The outer diameter must be larger than the inner diameter.")
+wall_thickness = (od_in - id_in) / 2.0
 
-st.success(f"Estimated Slope: {model.coef_[0][0]:.4f} | Intercept: {model.intercept_[0]:.4f}")
+# French size of catheter
+cath_french_size = 30.0 * (od_val if od_unit=="centimeters (cm)" else od_val * 2.54)
 
-# --- MODULE 2: NLP & REGEX ---
-#elif page == "NLP & Regex Tool":
-#    st.header("🔤 NLP Data Cleaning & Pattern Matching")
-#    st.write("Demonstrating text preprocessing and regex extraction.")
-#
-#    text_input = st.text_area("Input Text", "Contact us at support@company.com or sales@ai-tech.io. Order #12345.")
-#    regex_pattern = st.text_input("Regex Pattern (e.g., for emails)", r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
-#
-#    if st.button("Extract Patterns"):
-#        matches = re.findall(regex_pattern, text_input)
-#        if matches:
-#            st.write("**Found Matches:**")
-#            st.json(matches)
-#        else:
-#            st.warning("No matches found.")
-#
-#    st.markdown("---")
-#    st.subheader("Basic Tokenization")
-#    tokens = text_input.lower().split()
-#    st.write(f"**Token Count:** {len(tokens)}")
-#    st.write(tokens)
+# Mandrel OD (inches)
+mandrel_od = (id_val if id_unit=="inches (in)" else id_val * 0.3937007) + 0.001
+mandrel_suggest = (coil_wire != "N/A") and (id_in < 0.08)
+
+
+df_spec = pd.DataFrame({
+    "Inner Diameter (ID)": [f"{id_val} {id_unit}"],
+	"Outer Diameter (OD)": [f"{od_val} {od_unit}"],
+	"Catheter Wall Thickness": [f"{wall_thickness} inches"],
+	"Catheter French Size": [f"{cath_french_size} Fr"],
+	"Mandrel OD": [f"{mandrel_od} inches"]
+
+})
+
+
+st.write("### Summary of Specifications")
+col1, col2, col3 = st.columns(3)
+with col1:
+	st.table(df_spec.T)
+with st.container(border=True):
+	st.write(f"Inner Diameter (ID): {id_val} {id_unit}")
+	st.write(f"Outer Diameter (OD): {od_val} {od_unit}")
+	st.write(f"Catheter Wall Thickness: {wall_thickness} inches")
+	st.write(f"Catheter French Size: {cath_french_size} Fr")
+	st.write(f"Mandrel OD: {mandrel_od} inches")
+	if mandrel_suggest:
+		st.write("SPC or PTFE Beading Suggested.")
+    
+    
