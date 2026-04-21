@@ -6,15 +6,24 @@ from streamlit_gsheets import GSheetsConnection
 
 # Page Config
 st.set_page_config(page_title="BayCath Medical Catheter Calculator", layout="wide")
-left_co, cent_co, last_co = st.columns([1, 2, 1])
+st.markdown("""
+    <style>
+        * {
+			font-family: Arial, Helvetica, sans-serif;
+       }
+    </style>
+""", unsafe_allow_html=True)
+
+
+left_co, cent_co, last_co = st.columns([1, 4, 1])
 
 with cent_co:
 
 	st.title("BayCath Medical Catheter Calculator")
-
+	
 	st.image("model_cath_annot.jpg", caption="This is a model catheter")
 
-	st.header("Header")
+	st.header("Input dimensions")
 	st.write("Calculates required dimensions for your design")
 
 	# User Inputs
@@ -35,15 +44,17 @@ with cent_co:
 			oal_val = st.number_input("Enter value", min_value=0.0, key="oal_val")
 			oal_unit = st.radio("Select units:", ["centimeters (cm)", "inches (in)"], horizontal=True, key="oal_unit")
 
-	st.subheader("Braid Wire")
+	
 	col1, col2, col3 = st.columns(3)
 	with col1:
+		st.subheader("Braid Wire")
 		with st.container(border=True):
 			braid_wire = st.radio("Select option:", ["N/A", "Flat wire", "Round wire"], horizontal=True, key="braid_type")
 
-	st.subheader("Coil Wire")
-	col1, col2, col3 = st.columns(3)
-	with col1:
+	
+	#col1, col2, col3 = st.columns(3)
+	with col2:
+		st.subheader("Coil Wire")
 		with st.container(border=True):
 			coil_wire = st.radio("Select option:", ["N/A", "Coil under braid", "Flat wire", "Round wire"], horizontal=True, key="coil_type")
 
@@ -104,56 +115,65 @@ with cent_co:
 
 	# Summary
 
-	df_spec = pd.DataFrame({
-		"Inner Diameter (ID)": [f"{id_val} {id_unit}"],
-		"Outer Diameter (OD)": [f"{od_val} {od_unit}"],
-		"Catheter Wall Thickness": [f"{wall_thickness} inches"],
-		"Catheter French Size": [f"{cath_french_size} Fr"],
-		"Mandrel OD": [f"{mandrel_od} inches"], 
-		"Mandrel Length": [f"{mandrel_length} inches"],
 
-	})
 
+	options = ["Hubs", "Marker bands", "Feature 3", "Feature 4", "Feature 5", "Feature 6"]
+	selections = {}
+
+	st.write("### Optional Materials")
+
+	# Split into 3 columns
+	cols = st.columns(2)
+
+	for i, option in enumerate(options):
+		# This puts the checkbox in col 0, 1, or 2 based on the index
+		with cols[i % 2]:
+			selections[option] = st.checkbox(option)
+
+	# Get the list of selected items
+	final_list = [k for k, v in selections.items() if v]
+
+	df_spec = pd.DataFrame([
+		{" ": "Inner Diameter (ID)", "": f"{id_val} {id_unit}", "Note": None},
+		{" ": "Outer Diameter (OD)", "": f"{od_val} {od_unit}", "Note": None},
+		{" ": "Catheter Wall Thickness", "": f"{wall_thickness} inches", "Note": None},
+		{" ": "Catheter French Size", "": f"{cath_french_size} Fr", "Note": None},
+		{" ": "Mandrel OD", "": f"{mandrel_od} inches", "Note": "SPC or PTFE Beading Suggested." if mandrel_suggestion else None},
+		{" ": "Mandrel Length", "": f"{mandrel_length} inches", "Note": None},
+		{" ": "PTFE Liner ID", "": f"{ptfe_liner_id} inches", "Note": None},
+		{" ": "PTFE Liner Wall", "": f"{ptfe_liner_wall} inches", "Note": None},
+		{" ": "PTFE Liner Length", "": f"{ptfe_liner_length} inches", "Note": None},
+	])
 
 	st.write("### Summary of Specifications")
 
-	st.table(df_spec.T)
-	with st.container(border=True):
-		st.write(f"Inner Diameter (ID): {id_val} {id_unit}")
-		st.write(f"Outer Diameter (OD): {od_val} {od_unit}")
-		st.write(f"Catheter Wall Thickness: {wall_thickness} inches")
-		st.write(f"Catheter French Size: {cath_french_size} Fr")
-		st.write(f"Mandrel OD: {mandrel_od} inches")
-		if mandrel_suggestion:
-			st.write("SPC or PTFE Beading Suggested.")
-		if fep_ration_min_too_high:
-			st.write("FEP ration min is too high (>2.0 in). Proceed with caution.")
+	st.table(df_spec)
 		
-		
-
+	st.header("Get a quote")
 
 	# 1. Setup connection
 	conn = st.connection("gsheets", type=GSheetsConnection)
 
-
 	# 2. Create the form
 	with st.form("user_form"):
-		name = st.text_input("Name")
-		size = st.number_input("French Size", value=12)
-		submitted = st.form_submit_button("Send to Owner")
+		name = st.text_input("Name:")
+		email = st.text_input("Email:")
+		company_name = st.text_input("Company Name:")
+		notes = st.text_input("Notes:")
+		submitted = st.form_submit_button("Submit")
 
 		if submitted:
 			# Read existing data
-			existing_data = conn.read(worksheet="Sheet1", usecols=[0, 1], ttl=0)
+			existing_data = conn.read(worksheet="Contact Info", usecols=[0, 1], ttl=0)
 			existing_data = existing_data.dropna(how="all")  # Drop empty rows
 
 			# Create new row as a DataFrame
-			new_row = pd.DataFrame([{"Name": name, "French Size": size}])
+			new_row = pd.DataFrame([{"Name": name, "Email": email, "Company Name": company_name, "Notes": notes}])
 
 			# Append new row to existing data
 			updated_data = pd.concat([existing_data, new_row], ignore_index=True)
 
 			# Write back to the sheet
-			conn.update(worksheet="Sheet1", data=updated_data)
+			conn.update(worksheet="Contact Info", data=updated_data)
 
-			st.success("Data sent!")
+			st.success("Submitted!")
