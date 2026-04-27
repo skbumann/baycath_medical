@@ -45,18 +45,33 @@ with cent_co:
 			oal_unit = st.radio("Select units:", ["centimeters (cm)", "inches (in)"], horizontal=True, key="oal_unit")
 
 	
-	col1, col2, col3 = st.columns(3)
+	col1, col2 = st.columns(2)
 	with col1:
 		st.subheader("Braid Wire")
 		with st.container(border=True):
 			braid_wire = st.radio("Select option:", ["N/A", "Flat wire", "Round wire"], horizontal=True, key="braid_type")
+			if braid_wire != "N/A":
+				braid_ppi_val = st.number_input("Programmable Picks per Inch (PPI)", step=1, min_value=0, key="braid_ppi_val")
+				braid_thickness_val = st.number_input("Wire Thickness", step=0.0001, format="%.4f", min_value=0.0000, key="braid_thickness_val")
+				if braid_wire == "Flat wire":
+					braid_width_val = st.number_input("Wire Width", step=0.0001, format="%.4f", min_value=0.0000, key="braid_width_val")
+				braid_thickness_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="braid_thickness_unit")
+				num_braid_wires = st.radio("Select number of wires:", ["8", "16", "32"], horizontal=True, key="num_braid_wires")
 
 	
 	#col1, col2, col3 = st.columns(3)
 	with col2:
 		st.subheader("Coil Wire")
 		with st.container(border=True):
-			coil_wire = st.radio("Select option:", ["N/A", "Coil under braid", "Flat wire", "Round wire"], horizontal=True, key="coil_type")
+			coil_wire = st.radio("Select option:", ["N/A", "Flat wire", "Round wire"], horizontal=True, key="coil_type")
+			if coil_wire != "N/A":
+				coil_pitch_val = st.number_input("Pitch", step=1, min_value=0, key="coil_pitch_val")
+				coil_thickness_val = st.number_input("Wire Thickness", step=0.0001, format="%.4f", min_value=0.0000, key="coil_thickness_val")
+				if coil_wire == "Flat wire":
+					coil_width_val = st.number_input("Wire Width", step=0.0001, format="%.4f", min_value=0.0000, key="coil_width_val")
+				coil_thickness_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="coil_thickness_unit")
+				coil_under_braid = st.checkbox("Coil under braid")
+
 
 	# Calculations
 
