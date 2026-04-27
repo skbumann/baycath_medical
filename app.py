@@ -21,7 +21,7 @@ with cent_co:
 
 	st.title("BayCath Medical Catheter Calculator")
 	
-	st.image("model_cath_annot.jpg", caption="This is a model catheter")
+	st.image("cath_layers.png", caption="This is a model catheter")
 
 	st.header("Input dimensions")
 	st.write("Calculates required dimensions for your design")
@@ -31,17 +31,17 @@ with cent_co:
 	with col1:
 		with st.container(border=True):
 			st.write("Inner Diameter (ID):")
-			id_val = st.number_input("Enter value", min_value=0.0, key="id_val")
+			id_val = st.number_input("Enter value", step=0.0001, format="%.4f", min_value=0.0000, key="id_val")
 			id_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="id_unit")
 	with col2:
 		with st.container(border=True):
 			st.write("Outer Diameter (OD):")
-			od_val = st.number_input("Enter value", min_value=0.0, key="od_val")
+			od_val = st.number_input("Enter value", step=0.0001, format="%.4f", min_value=0.0000, key="od_val")
 			od_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="od_unit")
 	with col3:
 		with st.container(border=True):
 			st.write("Overall Length (OAL):")
-			oal_val = st.number_input("Enter value", min_value=0.0, key="oal_val")
+			oal_val = st.number_input("Enter value", step=0.0001, format="%.4f", min_value=0.0000, key="oal_val")
 			oal_unit = st.radio("Select units:", ["centimeters (cm)", "inches (in)"], horizontal=True, key="oal_unit")
 
 	
