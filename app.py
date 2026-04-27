@@ -44,7 +44,17 @@ with cent_co:
 			oal_val = st.number_input("Enter value", step=0.0001, format="%.4f", min_value=0.0000, key="oal_val")
 			oal_unit = st.radio("Select units:", ["centimeters (cm)", "inches (in)"], horizontal=True, key="oal_unit")
 
-	
+	# Validate that OD is larger than ID
+	od_in = od_val if od_unit=="inches (in)" else od_val * 0.03937007 # convert to in if in mm
+	id_in = id_val if id_unit=="inches (in)" else id_val * 0.03937007 # convert to in if in mm
+	if od_in < id_in:
+		st.warning('The outer diameter must be larger than the inner diameter.', icon="⚠️")
+
+	braid_thickness_val = 0.0
+	coil_thickness_val = 0.0
+	braid_thickness_unit="inches (in)"
+	coil_thickness_unit="inches (in)"
+
 	col1, col2 = st.columns(2)
 	with col1:
 		st.subheader("Braid Wire")
@@ -58,8 +68,6 @@ with cent_co:
 				braid_thickness_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="braid_thickness_unit")
 				num_braid_wires = st.radio("Select number of wires:", ["8", "16", "32"], horizontal=True, key="num_braid_wires")
 
-	
-	#col1, col2, col3 = st.columns(3)
 	with col2:
 		st.subheader("Coil Wire")
 		with st.container(border=True):
@@ -78,17 +86,13 @@ with cent_co:
 	var_a = 0.001
 
 	# Wall thickness: inches as default
-	od_in = od_val if od_unit=="inches (in)" else od_val * 0.3937007 # convert to in if in cm
-	id_in = id_val if id_unit=="inches (in)" else id_val * 0.3937007 # convert to in if in cm
-	if od_in < id_in:
-		raise ValueError("The outer diameter must be larger than the inner diameter.")
 	wall_thickness = (od_in - id_in) / 2.0
 
 	# French size of catheter
-	cath_french_size = 30.0 * (od_val if od_unit=="centimeters (cm)" else od_val * 2.54)
+	cath_french_size = 3.0 * (od_val if od_unit=="millimeters (mm)" else od_val * 25.4)
 
 	# Mandrel OD (inches)
-	mandrel_od = (id_val if id_unit=="inches (in)" else id_val * 0.3937007) + var_a
+	mandrel_od = (id_val if id_unit=="inches (in)" else id_val * 0.03937007) + var_a
 	mandrel_suggestion = ((coil_wire != "N/A") and (id_in < 0.08)) or (id_in < 0.03)
 
 	# SPC Mandrel (if using based on suggestion)
@@ -104,19 +108,30 @@ with cent_co:
 	# PTFE linear ID (inches)
 	ptfe_liner_id = mandrel_od + 0.003
 	ptfe_liner_wall = 0.001 if id_in < 0.1 else 0.0015 if (id_in > 0.1 and id_in < 0.2) else 0.2
+	st.subheader("Optional")
+	with st.container(border=True):
+		ptfe_liner_wall_overwritten = st.number_input("Overwrite PTFE Liner Wall", step=0.0001, format="%.4f", value=ptfe_liner_wall, key="ptfe_liner_wall_overwritten")
 	ptfe_liner_length = mandrel_length + 6.0
+	ptfe_liner_wall = ptfe_liner_wall_overwritten
 
-	braid_thickness = 0.1 # inches
-	coil_thickness = 0.1  # inches
+	braid_density = 0.1
+	braid_angle = 0.1
 
 	# Extrusion ID
-	extrusion_id = mandrel_od + 2.0 * ptfe_liner_wall + 4.0 * braid_thickness + 2.0 * coil_thickness + 0.006
+	braid_thickness_val = braid_thickness_val if (braid_thickness_val > 0.0) else 0.0
+	coil_thickness_val = coil_thickness_val if (coil_thickness_val > 0.0) else 0.0
+
+	braid_thickness_val_in = braid_thickness_val if braid_thickness_unit=="inches (in)" else braid_thickness_val * 0.03937007
+	coil_thickness_val_in = coil_thickness_val if coil_thickness_unit=="inches (in)" else coil_thickness_val * 0.03937007
+	extrusion_id = mandrel_od + 2.0 * ptfe_liner_wall + 4.0 * braid_thickness_val_in + 2.0 * coil_thickness_val_in + 0.006
 
 	# Extrusion wall
 	melted_extrusion_id = mandrel_od + 2.0 * ptfe_liner_wall
 	melted_extrusion_od = od_in + var_a
 
 	# Cross-sectional area
+	# Do the calcs I talked about with Michael here
+
 
 	total_extrusion_length = oal_in + 2.0
 
@@ -126,7 +141,11 @@ with cent_co:
 	fep_recovered_max = od_in - 0.04
 	fep_ration_min = fep_expanded_id / fep_recovered_max
 	fep_ration_min_too_high = fep_ration_min > 2.0
-	fep_ration_min_too_high = 4.0
+	if fep_ration_min_too_high:
+		st.warning('The FEP Ration Min is too high (>2.0).', icon="❌")
+		
+	# DO THE INCREMENTAL SUBTRACTION PART HERE
+	
 
 	# Summary
 
