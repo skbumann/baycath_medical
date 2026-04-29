@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 import re
 from streamlit_gsheets import GSheetsConnection
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+from googleapiclient.http import MediaIoBaseUpload
+import io
 
 # Page Config
 st.set_page_config(page_title="BayCath Medical Catheter Calculator", layout="wide")
@@ -21,7 +25,7 @@ with cent_co:
 
 	st.title("BayCath Medical Catheter Calculator")
 	
-	st.image("cath_layers.png", caption="This is a model catheter")
+	st.image("cath_layers.png")
 
 	st.header("Input dimensions")
 	st.write("Calculates required dimensions for your design")
@@ -110,9 +114,10 @@ with cent_co:
 	ptfe_liner_wall = 0.001 if id_in < 0.1 else 0.0015 if (id_in > 0.1 and id_in < 0.2) else 0.2
 	st.subheader("Optional")
 	with st.container(border=True):
-		ptfe_liner_wall_overwritten = st.number_input("Overwrite PTFE Liner Wall", step=0.0001, format="%.4f", value=ptfe_liner_wall, key="ptfe_liner_wall_overwritten")
+		ptfe_liner_wall_overwritten = st.number_input("Overwrite PTFE Liner Wall Thickness Default", step=0.0001, format="%.4f", value=ptfe_liner_wall, key="ptfe_liner_wall_overwritten")
+		ptfe_liner_wall_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="ptfe_liner_wall_unit")
 	ptfe_liner_length = mandrel_length + 6.0
-	ptfe_liner_wall = ptfe_liner_wall_overwritten
+	ptfe_liner_wall = ptfe_liner_wall_overwritten if ptfe_liner_wall_unit=="inches (in)" else ptfe_liner_wall_overwritten * 0.03937007
 
 	braid_density = 0.1
 	braid_angle = 0.1
@@ -138,18 +143,34 @@ with cent_co:
 	# FEP parts
 	fep_expanded_id = id_in + 2.0 * ptfe_liner_wall + 0.006
 	fep_wall = 0.01 if od_in < 0.3 else 0.012
+	#fep_expanded_id = 0.1
+	#od_in = 0.08
 	fep_recovered_max = od_in - 0.04
 	fep_ration_min = fep_expanded_id / fep_recovered_max
-	fep_ration_min_too_high = fep_ration_min > 2.0
+	fep_ration_min_too_high = fep_ration_min >= 2.0
+	final_increment = 0
+
 	if fep_ration_min_too_high:
-		st.warning('The FEP Ration Min is too high (>2.0).', icon="❌")
-		
-	# DO THE INCREMENTAL SUBTRACTION PART HERE
-	
+		st.warning('The FEP Ration Min is too high (>2.0). Adjusting the FEP Recovered Max...', icon="❌")
+		increments = np.arange(0.039, 0.019, -0.001)
+
+		for i in increments:
+			#st.write(i)
+			fep_recovered_max = od_in - i
+			fep_ration_min = fep_expanded_id / fep_recovered_max
+			fep_ration_min_too_high = fep_ration_min >= 2.0
+			if not fep_ration_min_too_high:
+				final_increment = i
+				#st.write(fep_recovered_max)
+				#st.write(fep_ration_min)
+				st.write(f"Final Increment Subtracted from Catheter OD: {final_increment:.3f} inches")
+				break
+			#else:
+			#	st.warning('The FEP Ration Min is too high (>2.0). Adjusting the FEP Recovered Max...', icon="❌")
+			if i==increments[-1]:
+				st.warning('Maximum adjustment made (-0.02 inches from the catheter OD). Proceed with caution...', icon="⚠️")
 
 	# Summary
-
-
 
 	options = ["Hubs", "Marker bands", "Feature 3", "Feature 4", "Feature 5", "Feature 6"]
 	selections = {}
@@ -185,7 +206,34 @@ with cent_co:
 		
 	st.header("Get a quote")
 
+	def upload_to_drive(file, folder_id):
+		# 1. Reuse the exact same info from your [connections.gsheets] secrets
+		creds_info = st.secrets["connections"]["gsheets"]
+		
+		# 2. Define the scope to include Drive
+		SCOPES = ['https://www.googleapis.com/auth/drive']
+		
+		# 3. Build the Drive Service
+		creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+		drive_service = build('drive', 'v3', credentials=creds)
+
+		# 4. Upload Logic
+		file_metadata = {'name': file.name, 'parents': [folder_id]}
+		media = MediaIoBaseUpload(file, mimetype=file.type, resumable=True)
+		
+		uploaded_file = drive_service.files().create(
+			body=file_metadata,
+			media_body=media,
+			fields='id',
+			supportsAllDrives=True
+		).execute()
+
+		
+		return uploaded_file.get('id')
+
+
 	# 1. Setup connection
+	FOLDER_ID = st.secrets["connections"]["gsheets"]["drive_folder_id"]
 	conn = st.connection("gsheets", type=GSheetsConnection)
 
 	# 2. Create the form
@@ -194,20 +242,35 @@ with cent_co:
 		email = st.text_input("Email:")
 		company_name = st.text_input("Company Name:")
 		notes = st.text_input("Notes:")
+		uploaded_file = st.file_uploader("Upload a document:")
 		submitted = st.form_submit_button("Submit")
 
 		if submitted:
-			# Read existing data
-			existing_data = conn.read(worksheet="Contact Info", usecols=[0, 1], ttl=0)
-			existing_data = existing_data.dropna(how="all")  # Drop empty rows
+			with st.spinner("Processing..."):
+				# 1. Handle Optional Upload
+				file_id = "No file uploaded"  # Default value
+				
+				if uploaded_file is not None:
+					try:
+						file_id = upload_to_drive(uploaded_file, FOLDER_ID)
+					except Exception as e:
+						st.error(f"File upload failed, but we'll try to save the data: {e}")
 
-			# Create new row as a DataFrame
-			new_row = pd.DataFrame([{"Name": name, "Email": email, "Company Name": company_name, "Notes": notes}])
+				# 2. Your Sheets logic
+				existing_data = conn.read(worksheet="Contact Info", ttl=0)
+				existing_data = existing_data.dropna(how="all")
 
-			# Append new row to existing data
-			updated_data = pd.concat([existing_data, new_row], ignore_index=True)
+				new_row = pd.DataFrame([{
+					"Name": name, 
+					"Email": email, 
+					"Company Name": company_name, 
+					"Notes": notes, 
+					"Drive File ID": file_id  # Uses the real ID or the default string
+				}])
 
-			# Write back to the sheet
-			conn.update(worksheet="Contact Info", data=updated_data)
+				updated_data = pd.concat([existing_data, new_row], ignore_index=True)
+				conn.update(worksheet="Contact Info", data=updated_data)
+				
+				st.success("Form submitted successfully!")
 
-			st.success("Submitted!")
+
