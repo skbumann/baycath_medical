@@ -55,9 +55,13 @@ with cent_co:
 		st.warning('The outer diameter must be larger than the inner diameter.', icon="⚠️")
 
 	braid_thickness_val = 0.0
+	braid_width_val = 0.0
 	coil_thickness_val = 0.0
+	braid_ppi_val = 0
 	braid_thickness_unit="inches (in)"
 	coil_thickness_unit="inches (in)"
+	braid_wire = "N/A"
+	num_braid_wires = 8
 
 	col1, col2 = st.columns(2)
 	with col1:
@@ -70,7 +74,7 @@ with cent_co:
 				if braid_wire == "Flat wire":
 					braid_width_val = st.number_input("Wire Width", step=0.0001, format="%.4f", min_value=0.0000, key="braid_width_val")
 				braid_thickness_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="braid_thickness_unit")
-				num_braid_wires = st.radio("Select number of wires:", ["8", "16", "32"], horizontal=True, key="num_braid_wires")
+				num_braid_wires = st.radio("Select number of wires:", [8, 16, 32], horizontal=True, key="num_braid_wires")
 
 	with col2:
 		st.subheader("Coil Wire")
@@ -112,27 +116,36 @@ with cent_co:
 	# PTFE linear ID (inches)
 	ptfe_liner_id = mandrel_od + 0.003
 	ptfe_liner_wall = 0.001 if id_in < 0.1 else 0.0015 if (id_in > 0.1 and id_in < 0.2) else 0.2
-	st.subheader("Optional")
+	st.subheader("Optional Dimension Modifications")
 	with st.container(border=True):
 		ptfe_liner_wall_overwritten = st.number_input("Overwrite PTFE Liner Wall Thickness Default", step=0.0001, format="%.4f", value=ptfe_liner_wall, key="ptfe_liner_wall_overwritten")
 		ptfe_liner_wall_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="ptfe_liner_wall_unit")
 	ptfe_liner_length = mandrel_length + 6.0
 	ptfe_liner_wall = ptfe_liner_wall_overwritten if ptfe_liner_wall_unit=="inches (in)" else ptfe_liner_wall_overwritten * 0.03937007
 
-	braid_density = 0.1
-	braid_angle = 0.1
 
 	# Extrusion ID
 	braid_thickness_val = braid_thickness_val if (braid_thickness_val > 0.0) else 0.0
 	coil_thickness_val = coil_thickness_val if (coil_thickness_val > 0.0) else 0.0
 
 	braid_thickness_val_in = braid_thickness_val if braid_thickness_unit=="inches (in)" else braid_thickness_val * 0.03937007
+	braid_width_val_in = braid_width_val if braid_thickness_unit=="inches (in)" else braid_width_val * 0.03937007
 	coil_thickness_val_in = coil_thickness_val if coil_thickness_unit=="inches (in)" else coil_thickness_val * 0.03937007
 	extrusion_id = mandrel_od + 2.0 * ptfe_liner_wall + 4.0 * braid_thickness_val_in + 2.0 * coil_thickness_val_in + 0.006
 
 	# Extrusion wall
 	melted_extrusion_id = mandrel_od + 2.0 * ptfe_liner_wall
 	melted_extrusion_od = od_in + var_a
+
+	# Braid angle calculation
+	D = mandrel_od + braid_thickness_val_in
+	PPI = braid_ppi_val
+	C = num_braid_wires
+	braid_angle = np.arctan(np.pi * D * PPI / C) # double check units are correct here
+	w = braid_width_val_in if braid_wire=="Flat wire" else braid_thickness_val_in
+	
+	# Braid density
+	braid_density = 1.0 - (1.0 - (C * w)/(2.0 * np.pi * D * np.cos(braid_angle)))**2.0
 
 	# Cross-sectional area
 	# Do the calcs I talked about with Michael here
@@ -171,21 +184,25 @@ with cent_co:
 
 	# Summary
 
-	options = ["Hubs", "Marker bands", "Feature 3", "Feature 4", "Feature 5", "Feature 6"]
+	options = ["Hubs", "Marker bands", "Extrusion Color", "Something else? (Please provide notes)", "Feature 5", "Feature 6"]
+	category = [0, 0, 1, 1, 0, 0]
 	selections = {}
 
 	st.write("### Optional Materials")
-
+	with st.container(border=True):
 	# Split into 3 columns
-	cols = st.columns(2)
+		cols = st.columns(2)
+	
+		for i, option in enumerate(options):
+			# This puts the checkbox in col 0, 1, or 2 based on the index
+			with cols[i % 2]:
+				if category[i] == 0:
+					selections[option] = st.number_input(option, step=1, min_value=0, key=option)
+				else:
+					selections[option] = st.text_input(option)
 
-	for i, option in enumerate(options):
-		# This puts the checkbox in col 0, 1, or 2 based on the index
-		with cols[i % 2]:
-			selections[option] = st.checkbox(option)
-
-	# Get the list of selected items
-	final_list = [k for k, v in selections.items() if v]
+		# Get the list of selected items
+		final_list = [k for k, v in selections.items() if v]
 
 	df_spec = pd.DataFrame([
 		{" ": "Inner Diameter (ID)", "": f"{id_val} {id_unit}", "Note": None},
@@ -197,12 +214,61 @@ with cent_co:
 		{" ": "PTFE Liner ID", "": f"{ptfe_liner_id} inches", "Note": None},
 		{" ": "PTFE Liner Wall", "": f"{ptfe_liner_wall} inches", "Note": None},
 		{" ": "PTFE Liner Length", "": f"{ptfe_liner_length} inches", "Note": None},
+		{" ": "Braid Angle", "": f"{np.degrees(braid_angle)} degrees", "Note": None},
+		{" ": "Braid Density", "": f"{braid_density}", "Note": None},
+		{" ": "Extrusion ID", "": f"{extrusion_id} inches", "Note": None},
+		{" ": "Extrusion Wall", "": "Need to calc from cross sec", "Note": None},
+		{" ": "Melted Extrusion ID", "": f"{melted_extrusion_id} inches", "Note": None},
+		{" ": "Melted Extrusion OD", "": f"{melted_extrusion_od} inches", "Note": None},
+		{" ": "Total Extrusion Length", "": f"{total_extrusion_length} inches", "Note": None},
+		{" ": "FEP Expanded ID", "": f"{fep_expanded_id} inches", "Note": None},
+		{" ": "FEP Wall", "": f"{fep_wall} inches", "Note": None},
+		{" ": "FEP Recovered Max", "": f"{fep_recovered_max} inches", "Note": None},
+		{" ": "FEP Ration Minimum", "": f"{fep_ration_min}", "Note": None},
 	])
 
 	st.write("### Summary of Specifications")
 
 	st.table(df_spec)
 		
+	def convert_df_to_excel(df):
+		output = io.BytesIO()
+		# Use xlsxwriter as the engine
+		with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+			df.to_excel(writer, index=False, sheet_name='Catheter Specs')
+			
+			# Optional: Add some basic formatting
+			workbook = writer.book
+			worksheet = writer.sheets['Catheter Specs']
+			
+			# Format: Header bold with a light blue background
+			header_format = workbook.add_format({
+				'bold': True,
+				'text_wrap': True,
+				'valign': 'top',
+				'fg_color': '#D7E4BC',
+				'border': 1
+			})
+
+			# Write the column headers with the defined format
+			for col_num, value in enumerate(df.columns.values):
+				worksheet.write(0, col_num, value, header_format)
+				# Adjust column width for readability
+				worksheet.set_column(col_num, col_num, 18)
+				
+		return output.getvalue()
+
+
+	# Once the data is processed:
+	excel_data = convert_df_to_excel(df_spec)
+
+	st.download_button(
+		label="📥 Download .xlsx",
+		data=excel_data,
+		file_name="catheter_specs.xlsx",
+		mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	)
+
 	st.header("Get a quote")
 
 	def upload_to_drive(file, folder_id):
@@ -274,6 +340,6 @@ with cent_co:
 				updated_data = pd.concat([existing_data, new_row], ignore_index=True)
 				conn.update(worksheet="Contact Info", data=updated_data)
 				
-				st.success("Form submitted successfully!")
+				st.success("Form submitted successfully! Michael will reach out to you ASAP.")
 
 
