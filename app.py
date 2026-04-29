@@ -137,7 +137,6 @@ with cent_co:
 	# Cross-sectional area
 	# Do the calcs I talked about with Michael here
 
-
 	total_extrusion_length = oal_in + 2.0
 
 	# FEP parts
@@ -231,7 +230,6 @@ with cent_co:
 		
 		return uploaded_file.get('id')
 
-
 	# 1. Setup connection
 	FOLDER_ID = st.secrets["connections"]["gsheets"]["drive_folder_id"]
 	conn = st.connection("gsheets", type=GSheetsConnection)
@@ -242,19 +240,24 @@ with cent_co:
 		email = st.text_input("Email:")
 		company_name = st.text_input("Company Name:")
 		notes = st.text_input("Notes:")
-		uploaded_file = st.file_uploader("Upload a document:")
+		uploaded_files = st.file_uploader("Upload documents (optional):", accept_multiple_files=True)
 		submitted = st.form_submit_button("Submit")
 
 		if submitted:
 			with st.spinner("Processing..."):
-				# 1. Handle Optional Upload
-				file_id = "No file uploaded"  # Default value
+				file_ids = [] # To store IDs of all uploaded files
 				
-				if uploaded_file is not None:
-					try:
-						file_id = upload_to_drive(uploaded_file, FOLDER_ID)
-					except Exception as e:
-						st.error(f"File upload failed, but we'll try to save the data: {e}")
+				# 1. Loop through the list of files
+				if uploaded_files: # Checks if the list is not empty
+					for uploaded_file in uploaded_files:
+						try:
+							fid = upload_to_drive(uploaded_file, FOLDER_ID)
+							file_ids.append(fid)
+						except Exception as e:
+							st.error(f"Failed to upload {uploaded_file.name}: {e}")
+
+				# Convert list of IDs to a string for the Google Sheet cell
+				ids_string = ", ".join(file_ids) if file_ids else "No files uploaded"
 
 				# 2. Your Sheets logic
 				existing_data = conn.read(worksheet="Contact Info", ttl=0)
@@ -265,7 +268,7 @@ with cent_co:
 					"Email": email, 
 					"Company Name": company_name, 
 					"Notes": notes, 
-					"Drive File ID": file_id  # Uses the real ID or the default string
+					"Drive File ID": ids_string  # Uses the real ID or the default string
 				}])
 
 				updated_data = pd.concat([existing_data, new_row], ignore_index=True)
