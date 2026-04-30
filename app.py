@@ -7,6 +7,7 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from googleapiclient.http import MediaIoBaseUpload
 import io
+from streamlit.components.v1 import html
 
 # Page Config
 st.set_page_config(page_title="BayCath Medical Catheter Calculator", layout="wide")
@@ -24,6 +25,47 @@ left_co, cent_co, last_co = st.columns([1, 4, 1])
 with cent_co:
 
 	st.title("BayCath Medical Catheter Calculator")
+
+	st.title("D3.js Catheter Visualizer")
+
+	# 1. Streamlit Inputs
+	fr_size = st.slider("French Size", 3, 34, 12)
+	wall_thickness = st.slider("Wall Thickness (mm)", 0.1, 1.0, 0.3)
+
+	# 2. Math for D3 (Scaling mm to Pixels)
+	outer_radius = (fr_size / 3) * 20  # Scale factor of 20 for visibility
+	inner_radius = max(5, outer_radius - (wall_thickness * 20))
+
+	# 3. The D3.js Code as a String
+	d3_code = f"""
+	<div id="d3_container"></div>
+	<script src="https://d3js.org/d3.v7.min.js"></script>
+	<script>
+		const width = 400, height = 300;
+		const svg = d3.select("#d3_container")
+					.append("svg")
+					.attr("width", width)
+					.attr("height", height);
+
+		// Outer Circle
+		svg.append("circle")
+		.attr("cx", width/2)
+		.attr("cy", height/2)
+		.attr("r", {outer_radius})
+		.style("fill", "#1f77b4")
+		.style("opacity", 0.7);
+
+		// Inner Circle (Lumen)
+		svg.append("circle")
+		.attr("cx", width/2)
+		.attr("cy", height/2)
+		.attr("r", {inner_radius})
+		.style("fill", "white");
+	</script>
+	"""
+
+	# 4. Render the component
+	html(d3_code, height=350)
 	
 	st.image("cath_layers.png")
 
