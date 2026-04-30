@@ -156,8 +156,8 @@ with cent_co:
 	# FEP parts
 	fep_expanded_id = id_in + 2.0 * ptfe_liner_wall + 0.006
 	fep_wall = 0.01 if od_in < 0.3 else 0.012
-	#fep_expanded_id = 0.1
-	#od_in = 0.08
+	fep_expanded_id = 0.1
+	od_in = 0.08
 	fep_recovered_max = od_in - 0.04
 	fep_ration_min = fep_expanded_id / fep_recovered_max
 	fep_ration_min_too_high = fep_ration_min >= 2.0
