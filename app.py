@@ -74,7 +74,7 @@ with cent_co:
 				if braid_wire == "Flat wire":
 					braid_width_val = st.number_input("Wire Width", step=0.0001, format="%.4f", min_value=0.0000, key="braid_width_val")
 				braid_thickness_unit = st.radio("Select units:", ["inches (in)", "millimeters (mm)"], horizontal=True, key="braid_thickness_unit")
-				num_braid_wires = st.radio("Select number of wires:", [8, 16, 32], horizontal=True, key="num_braid_wires")
+				num_braid_wires = st.radio("Select number of wires:", [8, 16, 32], index=1, horizontal=True, key="num_braid_wires")
 
 	with col2:
 		st.subheader("Coil Wire")
@@ -151,13 +151,14 @@ with cent_co:
 	# Do the calcs I talked about with Michael here
 	extrusion_wall = 0.1
 
+
 	total_extrusion_length = oal_in + 2.0
 
 	# FEP parts
 	fep_expanded_id = id_in + 2.0 * ptfe_liner_wall + 0.006
 	fep_wall = 0.01 if od_in < 0.3 else 0.012
-	fep_expanded_id = 0.1
-	od_in = 0.08
+	#fep_expanded_id = 0.1
+	#od_in = 0.08
 	fep_recovered_max = od_in - 0.04
 	fep_ration_min = fep_expanded_id / fep_recovered_max
 	fep_ration_min_too_high = fep_ration_min >= 2.0
@@ -292,7 +293,12 @@ with cent_co:
 		with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
 			df.to_excel(writer, index=False, sheet_name='Calculations')
 			# The 'with' block handles the save/close automatically
-		
+			worksheet = writer.sheets['Calculations']
+
+			# Insert the image into the worksheet
+			# 'E2' is the cell where the top-left corner of the image will be
+			worksheet.insert_image('P2', '/Users/julietomasi/Sonja/baycath/baycath_medical/figs/BayCath_Tree_White.png')
+
 		# 2. Reset buffer position to the start
 		excel_buffer.seek(0)
 		
@@ -341,14 +347,18 @@ with cent_co:
 
 	# 2. Create the form
 	with st.form("user_form"):
-		name = st.text_input("Name:")
-		email = st.text_input("Email:")
-		company_name = st.text_input("Company Name:")
+		name = st.text_input("Name: :red[*]")
+		email = st.text_input("Email: :red[*]")
+		company_name = st.text_input("Company Name: :red[*]")
+		phone_number = st.text_input("Phone Number:")
 		notes = st.text_input("Notes (Please provide additional details or drawings for steerable catherters, multilumen catheters, and balloon catheters):")
 		uploaded_files = st.file_uploader("Upload documents (optional):", accept_multiple_files=True)
 		submitted = st.form_submit_button("Submit")
 
 		if submitted:
+			if not name or not email or not company_name:
+				st.warning("Please fill in all required fields (Name, Email, Company Name).")
+				st.stop()
 			with st.spinner("Processing..."):
 				timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M")
 				filename = f"catheter_specs_{name}_{timestamp}.xlsx"
@@ -376,7 +386,8 @@ with cent_co:
 				new_row = pd.DataFrame([{
 					"Name": name, 
 					"Email": email, 
-					"Company Name": company_name, 
+					"Company Name": company_name,
+					"Phone Number": phone_number, 
 					"Notes": notes, 
 					"Drive File ID": ids_string  # Uses the real ID or the default string
 				}])
