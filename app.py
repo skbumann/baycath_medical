@@ -149,6 +149,7 @@ with cent_co:
 
 	# Cross-sectional area
 	# Do the calcs I talked about with Michael here
+	extrusion_wall = 0.1
 
 	total_extrusion_length = oal_in + 2.0
 
@@ -219,7 +220,7 @@ with cent_co:
 		{" ": "Braid Angle", "": f"{np.degrees(braid_angle)} degrees", "Note": None},
 		{" ": "Braid Density", "": f"{braid_density}", "Note": None},
 		{" ": "Extrusion ID", "": f"{extrusion_id} inches", "Note": None},
-		{" ": "Extrusion Wall", "": "Need to calc from cross sec", "Note": None},
+		{" ": "Extrusion Wall", "": f"{extrusion_wall} inches", "Note": None},
 		{" ": "Melted Extrusion ID", "": f"{melted_extrusion_id} inches", "Note": None},
 		{" ": "Melted Extrusion OD", "": f"{melted_extrusion_od} inches", "Note": None},
 		{" ": "Total Extrusion Length", "": f"{total_extrusion_length} inches", "Note": None},
@@ -227,6 +228,10 @@ with cent_co:
 		{" ": "FEP Wall", "": f"{fep_wall} inches", "Note": None},
 		{" ": "FEP Recovered Max", "": f"{fep_recovered_max} inches", "Note": None},
 		{" ": "FEP Ration Minimum", "": f"{fep_ration_min}", "Note": None},
+		{" ": "Hubs", "": f"{selections['Hubs']}", "Note": None},
+		{" ": "Marker bands", "": f"{selections['Marker bands']}", "Note": None},
+		{" ": "Extrusion Color", "": f"{selections['Extrusion Color']}", "Note": None},
+		{" ": "Something else? (Please provide notes)", "": f"{selections['Something else? (Please provide notes)']}", "Note": None}
 	])
 
 	st.write("### Summary of Specifications")
