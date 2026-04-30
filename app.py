@@ -145,7 +145,7 @@ with cent_co:
 	w = braid_width_val_in if braid_wire=="Flat wire" else braid_thickness_val_in
 	
 	# Braid density
-	braid_density = 1.0 - (1.0 - (C * w)/(2.0 * np.pi * D * np.cos(braid_angle)))**2.0
+	braid_density = (1.0 - (1.0 - (C * w)/(2.0 * np.pi * D * np.cos(braid_angle)))**2.0) * 100.0
 
 	# Cross-sectional area
 	# Do the calcs I talked about with Michael here
@@ -177,7 +177,7 @@ with cent_co:
 				final_increment = i
 				#st.write(fep_recovered_max)
 				#st.write(fep_ration_min)
-				st.write(f"Final Increment Subtracted from Catheter OD: {final_increment:.3f} inches")
+				st.success(f"Fixed FEP Ration Min ✅ Final Increment Subtracted from Catheter OD: {final_increment:.3f} inches")
 				break
 			#else:
 			#	st.warning('The FEP Ration Min is too high (>2.0). Adjusting the FEP Recovered Max...', icon="❌")
@@ -186,7 +186,7 @@ with cent_co:
 
 	# Summary
 
-	options = ["Hubs", "Marker bands", "Extrusion Color", "Feature 5", "Feature 6", "Something else? (Please provide notes)"]
+	options = ["Hubs", "Marker bands", "Extrusion Color", "Number of steering directions", "Number of extrusions", "Something else? (Please provide notes)"]
 	category = [0, 0, 1, 0, 0, 1]
 	selections = {}
 
@@ -207,31 +207,33 @@ with cent_co:
 		final_list = [k for k, v in selections.items() if v]
 
 	df_spec = pd.DataFrame([
-		{" ": "Inner Diameter (ID)", "": f"{id_val} {id_unit}", "Note": None},
-		{" ": "Outer Diameter (OD)", "": f"{od_val} {od_unit}", "Note": None},
-		{" ": "Catheter Wall Thickness", "": f"{wall_thickness} inches", "Note": None},
+		{" ": "Inner Diameter (ID)", "": f"{id_in:.3f} in", "Note": None},
+		{" ": "Outer Diameter (OD)", "": f"{od_in:.3f} in", "Note": None},
+		{" ": "Catheter Wall Thickness", "": f"{wall_thickness:.3f} in", "Note": None},
 		{" ": "Catheter French Size", "": f"{cath_french_size} Fr", "Note": None},
-		{" ": "Mandrel OD", "": f"{mandrel_od} inches", "Note": "SPC or PTFE Beading Suggested." if mandrel_suggestion else None},
-		{" ": "SPC Mandrel", "": f"{spc_mandrel_od} inches", "Note": None},
-		{" ": "PTFE Beading", "": f"{ptfe_beading} inches", "Note": None},
-		{" ": "Mandrel Length", "": f"{mandrel_length} inches", "Note": None},
-		{" ": "PTFE Liner ID", "": f"{ptfe_liner_id} inches", "Note": None},
-		{" ": "PTFE Liner Wall", "": f"{ptfe_liner_wall} inches", "Note": None},
-		{" ": "PTFE Liner Length", "": f"{ptfe_liner_length} inches", "Note": None},
-		{" ": "Braid Angle", "": f"{np.degrees(braid_angle)} degrees", "Note": None},
-		{" ": "Braid Density", "": f"{braid_density}", "Note": None},
-		{" ": "Extrusion ID", "": f"{extrusion_id} inches", "Note": None},
-		{" ": "Extrusion Wall Thickness", "": f"{extrusion_wall} inches", "Note": None},
-		{" ": "Melted Extrusion ID", "": f"{melted_extrusion_id} inches", "Note": None},
-		{" ": "Melted Extrusion OD", "": f"{melted_extrusion_od} inches", "Note": None},
-		{" ": "Total Extrusion Length", "": f"{total_extrusion_length} inches", "Note": None},
-		{" ": "FEP Expanded ID", "": f"{fep_expanded_id} inches", "Note": None},
-		{" ": "FEP Wall Thickness", "": f"{fep_wall} inches", "Note": None},
-		{" ": "FEP Recovered Max", "": f"{fep_recovered_max} inches", "Note": None},
-		{" ": "FEP Ration Minimum", "": f"{fep_ration_min}", "Note": None},
+		{" ": "Mandrel OD", "": f"{mandrel_od:.3f} in", "Note": "SPC or PTFE Beading Suggested." if mandrel_suggestion else None},
+		{" ": "SPC Mandrel OD", "": f"{spc_mandrel_od:.3f} in", "Note": None},
+		{" ": "PTFE Beading OD", "": f"{ptfe_beading:.3f} in", "Note": None},
+		{" ": "Mandrel Length", "": f"{(2.54*mandrel_length):.3f} cm", "Note": None},
+		{" ": "PTFE Liner ID", "": f"{ptfe_liner_id:.3f} in", "Note": None},
+		{" ": "PTFE Liner Wall", "": f"{ptfe_liner_wall:.3f} in", "Note": None},
+		{" ": "PTFE Liner Length", "": f"{(2.54*ptfe_liner_length):.3f} cm", "Note": None},
+		{" ": "Braid Angle", "": f"{np.degrees(braid_angle):.3f} degrees", "Note": None},
+		{" ": "Braid Density", "": f"{braid_density:.2f}%", "Note": None},
+		{" ": "Extrusion ID", "": f"{extrusion_id:.3f} in", "Note": None},
+		{" ": "Extrusion Wall Thickness", "": f"{extrusion_wall:.3f} in", "Note": None},
+		{" ": "Melted Extrusion ID", "": f"{melted_extrusion_id:.3f} in", "Note": None},
+		{" ": "Melted Extrusion OD", "": f"{melted_extrusion_od:.3f} in", "Note": None},
+		{" ": "Total Extrusion Length", "": f"{(2.54*total_extrusion_length):.3f} cm", "Note": None},
+		{" ": "FEP Expanded ID", "": f"{fep_expanded_id:.3f} in", "Note": None},
+		{" ": "FEP Wall Thickness", "": f"{fep_wall:.3f} in", "Note": None},
+		{" ": "FEP Recovered Max", "": f"{fep_recovered_max:.3f} in", "Note": None},
+		{" ": "FEP Ration Minimum", "": f"{fep_ration_min:.3f}", "Note": None},
 		{" ": "Hubs", "": f"{selections['Hubs']}", "Note": None},
 		{" ": "Marker bands", "": f"{selections['Marker bands']}", "Note": None},
 		{" ": "Extrusion Color", "": f"{selections['Extrusion Color']}", "Note": None},
+		{" ": "Number of steering directions", "": f"{selections['Number of steering directions']}", "Note": None},
+		{" ": "Number of extrusions", "": f"{selections['Number of extrusions']}", "Note": None},
 		{" ": "Something else? (Please provide notes)", "": f"{selections['Something else? (Please provide notes)']}", "Note": None}
 	])
 
@@ -260,7 +262,11 @@ with cent_co:
 
 			# Insert the image into the worksheet
 			# 'E2' is the cell where the top-left corner of the image will be
-			worksheet.insert_image('E10', './figs/BayCath_Tree_White.png')
+			worksheet.insert_image('E10', './figs/BayCath_Tree_White.png', {
+				'x_scale': 0.5, # Optional: scale width to 50%
+				'y_scale': 0.5, # Optional: scale height to 50%
+				'object_position': 1 # 1 = Move and size with cells
+        	})
 
 			# Write the column headers with the defined format
 			for col_num, value in enumerate(df.columns.values):
