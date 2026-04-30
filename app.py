@@ -258,6 +258,10 @@ with cent_co:
 				'border': 1
 			})
 
+			# Insert the image into the worksheet
+			# 'E2' is the cell where the top-left corner of the image will be
+			worksheet.insert_image('E10', './figs/BayCath_Tree_White.png')
+
 			# Write the column headers with the defined format
 			for col_num, value in enumerate(df.columns.values):
 				worksheet.write(0, col_num, value, header_format)
@@ -293,11 +297,6 @@ with cent_co:
 		with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
 			df.to_excel(writer, index=False, sheet_name='Calculations')
 			# The 'with' block handles the save/close automatically
-			worksheet = writer.sheets['Calculations']
-
-			# Insert the image into the worksheet
-			# 'E2' is the cell where the top-left corner of the image will be
-			worksheet.insert_image('P2', '/Users/julietomasi/Sonja/baycath/baycath_medical/figs/BayCath_Tree_White.png')
 
 		# 2. Reset buffer position to the start
 		excel_buffer.seek(0)
