@@ -27,7 +27,7 @@ with cent_co:
 	
 	st.image("cath_layers.png")
 
-	st.header("Input dimensions")
+	st.subheader("Input dimensions")
 	st.write("Calculates required dimensions for your design")
 
 	# User Inputs
@@ -36,12 +36,12 @@ with cent_co:
 		with st.container(border=True):
 			st.write("Inner Diameter (ID):")
 			id_val = st.number_input("Enter value", step=0.0001, format="%.4f", min_value=0.0000, key="id_val")
-			id_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="id_unit")
+			id_unit = st.radio("Select units:", ["inches (in)", "millimeters (mm)"], horizontal=True, key="id_unit")
 	with col2:
 		with st.container(border=True):
 			st.write("Outer Diameter (OD):")
 			od_val = st.number_input("Enter value", step=0.0001, format="%.4f", min_value=0.0000, key="od_val")
-			od_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="od_unit")
+			od_unit = st.radio("Select units:", ["inches (in)", "millimeters (mm)"], horizontal=True, key="od_unit")
 	with col3:
 		with st.container(border=True):
 			st.write("Overall Length (OAL):")
@@ -73,7 +73,7 @@ with cent_co:
 				braid_thickness_val = st.number_input("Wire Thickness", step=0.0001, format="%.4f", min_value=0.0000, key="braid_thickness_val")
 				if braid_wire == "Flat wire":
 					braid_width_val = st.number_input("Wire Width", step=0.0001, format="%.4f", min_value=0.0000, key="braid_width_val")
-				braid_thickness_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="braid_thickness_unit")
+				braid_thickness_unit = st.radio("Select units:", ["inches (in)", "millimeters (mm)"], horizontal=True, key="braid_thickness_unit")
 				num_braid_wires = st.radio("Select number of wires:", [8, 16, 32], horizontal=True, key="num_braid_wires")
 
 	with col2:
@@ -85,7 +85,7 @@ with cent_co:
 				coil_thickness_val = st.number_input("Wire Thickness", step=0.0001, format="%.4f", min_value=0.0000, key="coil_thickness_val")
 				if coil_wire == "Flat wire":
 					coil_width_val = st.number_input("Wire Width", step=0.0001, format="%.4f", min_value=0.0000, key="coil_width_val")
-				coil_thickness_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="coil_thickness_unit")
+				coil_thickness_unit = st.radio("Select units:", ["inches (in)", "millimeters (mm)"], horizontal=True, key="coil_thickness_unit")
 				coil_under_braid = st.checkbox("Coil under braid")
 
 
@@ -119,14 +119,14 @@ with cent_co:
 	st.subheader("Optional Dimension Modifications")
 	with st.container(border=True):
 		ptfe_liner_wall_overwritten = st.number_input("Overwrite PTFE Liner Wall Thickness Default", step=0.0001, format="%.4f", value=ptfe_liner_wall, key="ptfe_liner_wall_overwritten")
-		ptfe_liner_wall_unit = st.radio("Select units:", ["millimeters (mm)", "inches (in)"], horizontal=True, key="ptfe_liner_wall_unit")
+		ptfe_liner_wall_unit = st.radio("Select units:", ["inches (in)", "millimeters (mm)"], horizontal=True, key="ptfe_liner_wall_unit")
 	ptfe_liner_length = mandrel_length + 6.0
 	ptfe_liner_wall = ptfe_liner_wall_overwritten if ptfe_liner_wall_unit=="inches (in)" else ptfe_liner_wall_overwritten * 0.03937007
 
 
 	# Extrusion ID
-	braid_thickness_val = braid_thickness_val if (braid_thickness_val > 0.0) else 0.0
-	coil_thickness_val = coil_thickness_val if (coil_thickness_val > 0.0) else 0.0
+	#braid_thickness_val = braid_thickness_val if (braid_thickness_val > 0.0) else 0.0
+	#coil_thickness_val = coil_thickness_val if (coil_thickness_val > 0.0) else 0.0
 
 	braid_thickness_val_in = braid_thickness_val if braid_thickness_unit=="inches (in)" else braid_thickness_val * 0.03937007
 	braid_width_val_in = braid_width_val if braid_thickness_unit=="inches (in)" else braid_width_val * 0.03937007
@@ -185,8 +185,8 @@ with cent_co:
 
 	# Summary
 
-	options = ["Hubs", "Marker bands", "Extrusion Color", "Something else? (Please provide notes)", "Feature 5", "Feature 6"]
-	category = [0, 0, 1, 1, 0, 0]
+	options = ["Hubs", "Marker bands", "Extrusion Color", "Feature 5", "Feature 6", "Something else? (Please provide notes)"]
+	category = [0, 0, 1, 0, 0, 1]
 	selections = {}
 
 	st.write("### Optional Materials")
@@ -220,12 +220,12 @@ with cent_co:
 		{" ": "Braid Angle", "": f"{np.degrees(braid_angle)} degrees", "Note": None},
 		{" ": "Braid Density", "": f"{braid_density}", "Note": None},
 		{" ": "Extrusion ID", "": f"{extrusion_id} inches", "Note": None},
-		{" ": "Extrusion Wall", "": f"{extrusion_wall} inches", "Note": None},
+		{" ": "Extrusion Wall Thickness", "": f"{extrusion_wall} inches", "Note": None},
 		{" ": "Melted Extrusion ID", "": f"{melted_extrusion_id} inches", "Note": None},
 		{" ": "Melted Extrusion OD", "": f"{melted_extrusion_od} inches", "Note": None},
 		{" ": "Total Extrusion Length", "": f"{total_extrusion_length} inches", "Note": None},
 		{" ": "FEP Expanded ID", "": f"{fep_expanded_id} inches", "Note": None},
-		{" ": "FEP Wall", "": f"{fep_wall} inches", "Note": None},
+		{" ": "FEP Wall Thickness", "": f"{fep_wall} inches", "Note": None},
 		{" ": "FEP Recovered Max", "": f"{fep_recovered_max} inches", "Note": None},
 		{" ": "FEP Ration Minimum", "": f"{fep_ration_min}", "Note": None},
 		{" ": "Hubs", "": f"{selections['Hubs']}", "Note": None},
@@ -344,7 +344,7 @@ with cent_co:
 		name = st.text_input("Name:")
 		email = st.text_input("Email:")
 		company_name = st.text_input("Company Name:")
-		notes = st.text_input("Notes:")
+		notes = st.text_input("Notes (Please provide additional details or drawings for steerable catherters, multilumen catheters, and balloon catheters):")
 		uploaded_files = st.file_uploader("Upload documents (optional):", accept_multiple_files=True)
 		submitted = st.form_submit_button("Submit")
 
