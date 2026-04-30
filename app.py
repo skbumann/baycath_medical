@@ -210,6 +210,8 @@ with cent_co:
 		{" ": "Catheter Wall Thickness", "": f"{wall_thickness} inches", "Note": None},
 		{" ": "Catheter French Size", "": f"{cath_french_size} Fr", "Note": None},
 		{" ": "Mandrel OD", "": f"{mandrel_od} inches", "Note": "SPC or PTFE Beading Suggested." if mandrel_suggestion else None},
+		{" ": "SPC Mandrel", "": f"{spc_mandrel_od} inches", "Note": None},
+		{" ": "PTFE Beading", "": f"{ptfe_beading} inches", "Note": None},
 		{" ": "Mandrel Length", "": f"{mandrel_length} inches", "Note": None},
 		{" ": "PTFE Liner ID", "": f"{ptfe_liner_id} inches", "Note": None},
 		{" ": "PTFE Liner Wall", "": f"{ptfe_liner_wall} inches", "Note": None},
@@ -257,6 +259,55 @@ with cent_co:
 				worksheet.set_column(col_num, col_num, 18)
 				
 		return output.getvalue()
+	
+	def upload_to_drive(file_metadata, media):
+		# 1. Reuse the exact same info from your [connections.gsheets] secrets
+		creds_info = st.secrets["connections"]["gsheets"]
+		
+		# 2. Define the scope to include Drive
+		SCOPES = ['https://www.googleapis.com/auth/drive']
+		
+		# 3. Build the Drive Service
+		creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+		drive_service = build('drive', 'v3', credentials=creds)
+		
+		uploaded_file = drive_service.files().create(
+			body=file_metadata,
+			media_body=media,
+			fields='id',
+			supportsAllDrives=True
+		).execute()
+
+		return uploaded_file.get('id')
+
+	def upload_xlsx_to_drive(df, folder_id, filename):
+
+		# 1. Create Excel file in a BytesIO buffer
+		excel_buffer = io.BytesIO()
+		with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+			df.to_excel(writer, index=False, sheet_name='Calculations')
+			# The 'with' block handles the save/close automatically
+		
+		# 2. Reset buffer position to the start
+		excel_buffer.seek(0)
+		
+		# 3. Prepare metadata for Google Drive
+		file_metadata = {
+			'name': filename,
+			'parents': [folder_id],
+			'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+		}
+		
+		# 4. Create the media upload object
+		media = MediaIoBaseUpload(
+			excel_buffer, 
+			mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+			resumable=True
+		)
+
+		fid = upload_to_drive(file_metadata, media)
+		
+		return fid
 
 
 	# Once the data is processed:
@@ -271,30 +322,13 @@ with cent_co:
 
 	st.header("Get a quote")
 
-	def upload_to_drive(file, folder_id):
-		# 1. Reuse the exact same info from your [connections.gsheets] secrets
-		creds_info = st.secrets["connections"]["gsheets"]
-		
-		# 2. Define the scope to include Drive
-		SCOPES = ['https://www.googleapis.com/auth/drive']
-		
-		# 3. Build the Drive Service
-		creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
-		drive_service = build('drive', 'v3', credentials=creds)
-
-		# 4. Upload Logic
+	def upload_file_to_drive(file, folder_id):
+		# Generate file metadata
 		file_metadata = {'name': file.name, 'parents': [folder_id]}
 		media = MediaIoBaseUpload(file, mimetype=file.type, resumable=True)
-		
-		uploaded_file = drive_service.files().create(
-			body=file_metadata,
-			media_body=media,
-			fields='id',
-			supportsAllDrives=True
-		).execute()
 
-		
-		return uploaded_file.get('id')
+		fid = upload_to_drive(file_metadata, media)
+		return fid
 
 	# 1. Setup connection
 	FOLDER_ID = st.secrets["connections"]["gsheets"]["drive_folder_id"]
@@ -311,13 +345,18 @@ with cent_co:
 
 		if submitted:
 			with st.spinner("Processing..."):
+				timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M")
+				filename = f"catheter_specs_{name}_{timestamp}.xlsx"
+
+				file_id = upload_xlsx_to_drive(df_spec, FOLDER_ID, filename)
+
 				file_ids = [] # To store IDs of all uploaded files
 				
 				# 1. Loop through the list of files
 				if uploaded_files: # Checks if the list is not empty
 					for uploaded_file in uploaded_files:
 						try:
-							fid = upload_to_drive(uploaded_file, FOLDER_ID)
+							fid = upload_file_to_drive(uploaded_file, FOLDER_ID)
 							file_ids.append(fid)
 						except Exception as e:
 							st.error(f"Failed to upload {uploaded_file.name}: {e}")
