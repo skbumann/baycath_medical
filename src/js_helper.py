@@ -3,7 +3,9 @@ def get_three_js_string(layers_config):
     js_layers = json.dumps(layers_config)
 
     three_js_code = f"""
-    <div id="container" style="width: 100%; height: 700px;"></div>
+    <div id="container" style="width: 100%; height: 700px; position: relative;">
+        <svg id="label-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible;"></svg>
+    </div>
     <script type="importmap">
     {{
         "imports": {{
@@ -38,7 +40,6 @@ def get_three_js_string(layers_config):
             ctx.fillRect(0, 0, 256, 256);
             ctx.strokeStyle = 'black';
             
-
             if (type === 'braid') {{
                 ctx.lineWidth = 5;
                 // Interweaving braid lines (cross-hatch pattern)
@@ -74,6 +75,9 @@ def get_three_js_string(layers_config):
         }}
         const baseLength = 10;
         const step = 1.2;
+        const labelAnchors = []; // {{ worldPos: Vector3, index: number }}
+        const svg = document.getElementById('label-svg');
+        const svgNS = 'http://www.w3.org/2000/svg';
 
         // Create Layers
         layersData.forEach((layer, index) => {{
@@ -111,6 +115,50 @@ def get_three_js_string(layers_config):
             mesh.position.z = ((baseLength / 2) - (index * step)) - (length / 2);
 
             scene.add(mesh);
+
+            // Anchor: top edge of the open (front) face of the cylinder.
+            // The mesh is rotated Math.PI/2 on X, so the cylinder's radial Y maps to world Y.
+            // Front face is at mesh.position.z + length/2.
+            const frontZ = mesh.position.z + (length / 2);
+            const anchorWorld = new THREE.Vector3(0, layer.radius, frontZ);
+            labelAnchors.push({{ worldPos: anchorWorld, name: layer.name, index }});
+        }});
+
+        // Build SVG elements for each label (line + elbow + rect + text)
+        const svgEls = labelAnchors.map((anchor) => {{
+            const line = document.createElementNS(svgNS, 'line');
+            line.setAttribute('stroke', '#888');
+            line.setAttribute('stroke-width', '1.5');
+
+            const elbow = document.createElementNS(svgNS, 'line');
+            elbow.setAttribute('stroke', '#888');
+            elbow.setAttribute('stroke-width', '1.5');
+
+            const dot = document.createElementNS(svgNS, 'circle');
+            dot.setAttribute('r', '3');
+            dot.setAttribute('fill', '#555');
+
+            const rect = document.createElementNS(svgNS, 'rect');
+            rect.setAttribute('rx', '4');
+            rect.setAttribute('fill', 'rgba(255,255,255,0.9)');
+            rect.setAttribute('stroke', '#bbb');
+            rect.setAttribute('stroke-width', '1');
+
+            const text = document.createElementNS(svgNS, 'text');
+            text.textContent = anchor.name;
+            text.setAttribute('font-family', 'sans-serif');
+            text.setAttribute('font-size', '11');
+            text.setAttribute('font-weight', '600');
+            text.setAttribute('fill', '#222');
+            text.setAttribute('dominant-baseline', 'middle');
+
+            // Add in order: line behind, then rect, then text on top
+            svg.appendChild(line);
+            svg.appendChild(elbow);
+            svg.appendChild(dot);
+            svg.appendChild(rect);
+            svg.appendChild(text);
+            return {{ line, elbow, dot, rect, text }};
         }});
 
         // Lighting
@@ -129,10 +177,74 @@ def get_three_js_string(layers_config):
         controls.update();
         controls.enableDamping = true;
 
+        function updateLabels() {{
+            const w = container.clientWidth;
+            const h = 500;
+            const topPadding = 16; // px from top edge to label centre
+            const labelSpacing = w / (labelAnchors.length + 1);
+
+            labelAnchors.forEach((anchor, i) => {{
+                const {{ line, elbow, dot, rect, text }} = svgEls[i];
+
+                // Project world anchor to screen
+                const pos = anchor.worldPos.clone().project(camera);
+                const hidden = pos.z > 1;
+
+                if (hidden) {{
+                    [line, elbow, dot, rect, text].forEach(el => el.setAttribute('visibility', 'hidden'));
+                    return;
+                }}
+                [line, elbow, dot, rect, text].forEach(el => el.setAttribute('visibility', 'visible'));
+
+                const ax = (pos.x * 0.5 + 0.5) * w;
+                const ay = (-pos.y * 0.5 + 0.5) * h;
+
+                // Evenly spaced label X positions along the top
+                const lx_center = labelSpacing * (i + 1);
+
+                // Measure text to size the rect
+                const bbox = text.getBBox ? text.getBBox() : {{ width: 80, height: 14 }};
+                const rectPad = {{ x: 6, y: 4 }};
+                const rw = bbox.width + rectPad.x * 2;
+                const rh = bbox.height + rectPad.y * 2;
+
+                const lx = lx_center - rw / 2; // left edge of label box, centred on slot
+                const ly = topPadding;          // top edge of label box
+
+                // Dot at the anchor point on the cylinder surface
+                dot.setAttribute('cx', ax);
+                dot.setAttribute('cy', ay);
+
+                // Diagonal line from anchor up to just below the label
+                const elbowY = ly + rh + 10;
+                line.setAttribute('x1', ax);
+                line.setAttribute('y1', ay);
+                line.setAttribute('x2', lx_center);
+                line.setAttribute('y2', elbowY);
+
+                // Short vertical stub from elbow into bottom of label box
+                elbow.setAttribute('x1', lx_center);
+                elbow.setAttribute('y1', elbowY);
+                elbow.setAttribute('x2', lx_center);
+                elbow.setAttribute('y2', ly + rh);
+
+                // Label rect
+                rect.setAttribute('x', lx);
+                rect.setAttribute('y', ly);
+                rect.setAttribute('width', rw);
+                rect.setAttribute('height', rh);
+
+                // Label text centred in rect
+                text.setAttribute('x', lx + rectPad.x);
+                text.setAttribute('y', ly + rh / 2);
+            }});
+        }}
+
         function animate() {{
             requestAnimationFrame(animate);
             controls.update();
             renderer.render(scene, camera);
+            updateLabels();
         }}
         animate();
 
